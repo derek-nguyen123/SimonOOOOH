@@ -1,0 +1,85 @@
+CSCB58 Project File: Summer 2017
+
+Team Member A
+-------------
+First Name: Alexander
+Last Name: Green
+Student Number: 1003096990
+UofT E-mail Address: alexander.green@mail.utoronto.ca
+
+
+Team Member B
+-------------
+First Name: Spencer
+Last Name: Mccoubrey
+Student Number: 1002960664
+UofT E-mail Address: spencer.mccoubrey@mail.utoronto.ca
+
+Team Member C (Optional)
+-------------
+First Name: Bilal
+Last Name: Khan
+Student Number: 1003475660
+UofT E-mail Address: bm.khan@mail.utoronto.ca
+
+Team Member D (Optional)
+-------------
+First Name: Derek
+Last Name: Nguyen
+Student Number: 1003003359
+UofT E-mail Address: derek.nguyen@mail.utoronto.ca
+
+Project Details
+---------------
+Project Title: Simon
+
+Project Description: Memorization game. Sequence of LEDs will light up, user must replicate the same sequence on a set of switches and send the replicated signal using another switch. Points rewarded for successful replication.
+
+Video URL: https://www.youtube.com/watch?v=Rzdt7ljwR1I&feature=youtu.be
+
+Code URL (please upload a copy of this file to your repository at the end of the project as well, it will
+serve as a useful resource for future development): https://github.com/McCoubs/SimonOOOOH/tree/master/verilog%20code
+
+
+Proposal
+--------
+
+What do you plan to have completed by the end of the first lab session?: Create and display a random sequence of lights.
+
+What do you plan to have completed by the end of the second lab session?: Matching inputs to sequences.
+
+What do you plan to have completed by the end of the third lab session?: Score keeping, high score keeping.
+
+What is your backup plan if things don�t work out as planned?
+Don't track high scores, keep the game simple.
+
+What hardware will you need beyond the DE2 board 
+(be sure to e-mail Brian if it�s anything beyond the basics to make sure there�s enough to go around)
+None.
+
+Motivations
+-----------
+How does this project relate to the material covered in CSCB58?: We learned to store data to compare against user input, kept state machines to control point in game.
+
+Why is this project interesting/cool (for CSCB58 students, and for non CSCB58 students?): Cool implementation of popular simon game.
+
+Why did you personally choose this project?: We found that this game would be of decent challenge to us while allowing us to explore all aspects of what we have learned in CSCB58. Also,
+simon has been a very popular game in our lives and found that it could be very relatable.
+
+Attributions
+------------
+Provide a complete list of any external resources your project used (attributions should also be included in your
+code).  
+
+Updates
+-------
+
+Week 1: Finished design of all state machines and function of the project. Finished the coding of the controller module, as well as the VGA instantiation
+
+Week 2: Finished design and implementation of beginning VGA screen as well as minor game logic and changing of screen.
+
+week 3: Finished game, allowing for one sequence at a time, added high scores.
+
+Week 4: Presented game, went changed send switch to a further switch to prevent clutter around input switches.
+
+
