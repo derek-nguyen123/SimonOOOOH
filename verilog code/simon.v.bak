@@ -1,0 +1,418 @@
+module simon(
+		CLOCK_50,						//	On Board 50 MHz
+		// Your inputs and outputs here
+        KEY,
+		SW,
+		LEDR,
+		HEX0,
+		HEX1,
+		// The ports below are for the VGA output.  Do not change.
+		VGA_CLK,   						//	VGA Clock
+		VGA_HS,							//	VGA H_SYNC
+		VGA_VS,							//	VGA V_SYNC
+		VGA_BLANK_N,						//	VGA BLANK
+		VGA_SYNC_N,						//	VGA SYNC
+		VGA_R,   						//	VGA Red[9:0]
+		VGA_G,	 						//	VGA Green[9:0]
+		VGA_B   						//	VGA Blue[9:0]
+	);
+
+	input			CLOCK_50;				//	50 MHz
+	input   [3:0] KEY;
+	input  [17:0] SW;
+	output [17:0] LEDR;
+	output [6:0] HEX0;
+	output [6:0] HEX1;
+
+	// Declare your inputs and outputs here
+	// Do not change the following outputs
+	output			VGA_CLK;   				//	VGA Clock
+	output			VGA_HS;					//	VGA H_SYNC
+	output			VGA_VS;					//	VGA V_SYNC
+	output			VGA_BLANK_N;			//	VGA BLANK
+	output			VGA_SYNC_N;				//	VGA SYNC
+	output	[9:0]	VGA_R;   				//	VGA Red[9:0]
+	output	[9:0]	VGA_G;	 				//	VGA Green[9:0]
+	output	[9:0]	VGA_B;   				//	VGA Blue[9:0]
+    
+	wire [2:0] colour;
+	wire [7:0] x;
+	wire [7:0] y;
+	wire writeEn, resetn;
+	assign resetn = SW[17];
+	wire check;
+	wire correct;
+	wire [2:0] draw;
+	wire plot, redraw;
+	wire [7:0] score;
+	wire randomize;
+	wire [19:0] pixels_drawn;
+	wire [3:0] sequences;
+	wire [3:0] max_sequences;
+	// Create an Instance of a VGA controller - there can be only one!
+	// Define the number of colours as well as the initial background
+	// image file (.MIF) for the controller.
+	vga_adapter VGA(
+			.resetn(resetn),
+			.clock(CLOCK_50),
+			.colour(colour),
+			.x(x),
+			.y(y),
+			.plot(writeEn),
+			/* Signals for the DAC to drive the monitor. */
+			.VGA_R(VGA_R),
+			.VGA_G(VGA_G),
+			.VGA_B(VGA_B),
+			.VGA_HS(VGA_HS),
+			.VGA_VS(VGA_VS),
+			.VGA_BLANK(VGA_BLANK_N),
+			.VGA_SYNC(VGA_SYNC_N),
+			.VGA_CLK(VGA_CLK));
+		defparam VGA.RESOLUTION = "160x120";
+		defparam VGA.MONOCHROME = "FALSE";
+		defparam VGA.BITS_PER_COLOUR_CHANNEL = 1;
+		defparam VGA.BACKGROUND_IMAGE = "black.mif";
+
+	control c0(	.clk(CLOCK_50), 
+			.check(check),
+			.send(SW[5]), 
+			.restart(resetn), 
+			.start(SW[0]), 
+			.correct(correct),
+			.draw(draw), 
+			.plot(writeEn), 
+			.random(randomize), 
+			.pixels_drawn(pixels_drawn), 
+			.score(score)
+			.sequences(sequences),
+			.max_sequences(max_sequences));
+
+	datapath d0(.clk(CLOCK_50),
+			.restart(resetn),
+			.randomize(randomize),
+			.check(check),
+			.draw(draw),
+			.plot(writeEn),
+			.max_sequences(max_sequences),
+			.inputs(SW[4:1]),
+			.correct(correct),
+			.x(x),
+			.y(y),
+			.colour(colour),
+			.pixels_drawn(pixels_drawn),
+			.sequences(sequences));
+
+	hex_display h0(.IN(score[3:0]), .OUT(HEX0));
+	hex_display h1(.IN(score[3:0]), .OUT(HEX1));
+
+endmodule
+
+module hex_display(IN, OUT);
+	input [3:0] IN;
+	output reg [7:0] OUT;
+	 
+	always @(*)
+	begin
+		case(IN[3:0])
+			4'b0000: OUT = 7'b1000000;
+			4'b0001: OUT = 7'b1111001;
+			4'b0010: OUT = 7'b0100100;
+			4'b0011: OUT = 7'b0110000;
+			4'b0100: OUT = 7'b0011001;
+			4'b0101: OUT = 7'b0010010;
+			4'b0110: OUT = 7'b0000010;
+			4'b0111: OUT = 7'b1111000;
+			4'b1000: OUT = 7'b0000000;
+			4'b1001: OUT = 7'b0011000;
+			4'b1010: OUT = 7'b0001000;
+			4'b1011: OUT = 7'b0000011;
+			4'b1100: OUT = 7'b1000110;
+			4'b1101: OUT = 7'b0100001;
+			4'b1110: OUT = 7'b0000110;
+			4'b1111: OUT = 7'b0001110;
+			default: OUT = 7'b0111111;
+		endcase
+	end
+endmodule
+
+module control(clk, check, send, restart, start, correct, draw, plot, random, pixels_drawn, score, sequences, max_sequences);
+	output check, plot, random;
+	output [3:0] draw;
+	output [7:0] score;
+	output [3:0] max_sequences;
+	input send, clk, start, restart, correct;
+	input [19:0] pixels_drawn;
+	input [3:0] sequences;
+	initial max_sequences = 4'd1;
+	
+	localparam // UNITED STATES OF BILAL AND CO
+	BEGIN = 20'D0,
+	RANDOMIZE = 20'D1,
+	LOAD_SQUARE_1 = 20'D2,
+	DRAW_SQUARE_1 = 20'D3,	
+	LOAD_SQUARE_2 = 20'D4,
+	DRAW_SQUARE_2 = 20'D5,	
+	LOAD_SQUARE_3 = 20'D6,
+	DRAW_SQUARE_3 = 20'D7,		
+	LOAD_SQUARE_4 = 20'D8,
+	DRAW_SQUARE_4 = 20'D9,		
+	WAIT = 20'D10,
+	CHECK = 20'D11,
+	SYKE = 20'D12, // THATS THE WRONG NUMBER OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOH
+	CORRECT = 20'D13,
+	UPDATE_SCORE = 20'D14,
+	CHECK_WAIT = 20'd15,
+	REDRAW_DELAY = 20'd16,
+	REDRAW_DELAY_WAIT = 20'd17;
+	
+	reg [19:0] current_state, next_state;
+	integer flash_time = 25000000;
+	integer down_time = 25000000;
+
+
+	// waiting_thing for delays
+	wire ct_reset, ct_go;
+	integer ct_max;
+	rate_divider counting(.clk(clk), .reset(ct_reset), .start_value(ct_max), .enable(ct_go));
+
+	always @(*) 
+	begin: state_selection
+		case(*)
+			BEGIN: next_state =  start ? RANDOMIZE : BEGIN;
+			RANDOMIZE: next_state = LOAD_SQUARE_1;
+			LOAD_SQUARE_1: next_state = DRAW_SQUARE_1;
+			DRAW_SQUARE_1: next_state = (pixels_drawn < 20'd256) ? DRAW_SQUARE_1 : LOAD_SQUARE_2; 
+			LOAD_SQUARE_2: next_state = DRAW_SQUARE_2;
+			DRAW_SQUARE_2: next_state = (pixels_drawn < 20'd256) ? DRAW_SQUARE_2 : LOAD_SQUARE_3;
+			LOAD_SQUARE_3: next_state = DRAW_SQUARE_3;
+			DRAW_SQUARE_3: next_state = (pixels_drawn < 20'd256) ? DRAW_SQUARE_3 : LOAD_SQUARE_4; 
+			LOAD_SQUARE_4: next_state = DRAW_SQUARE_4;
+			DRAW_SQUARE_4: next_state = (pixels_drawn < 20'd256) ? DRAW_SQUARE_4 : REDRAW_DELAY;
+			REDRAW_DELAY: next_state = REDRAW_DELAY_WAIT;
+			// after the delay loop back to drawing square one if there are sequences left, otherwise go to wait
+			REDRAW_DELAY_WAIT: next_state = ct_go ? ((sequences == 4'b0000) ? WAIT : DRAW_SQUARE_1) : REDRAW_DELAY_WAIT; // can I even do this?
+			WAIT: next_state = send ? CHECK_WAIT : WAIT;
+			CHECK_WAIT: next_state = CHECK;
+			CHECK: next_state = correct ? CORRECT : SYKE; //THATS THE WRONG NUMBER OOOOOOOOOOOOOOH
+			CORRECT: next_state = WAIT;
+			SYKE: next_state = BEGIN;
+		endcase
+	end
+	
+	always @(posedge clk)
+	begin: enable signals
+	draw = 3'b0;
+	plot = 1'b0;
+	check = 1'b0;
+	random = 1'b0;
+	ct_reset = 1'b0;
+		case(*)
+			BEGIN: sequences = 3'b000;
+			RANDOMIZE: random = 1'b1;
+			LOAD_SQUARE_1: draw = 3'b001;
+			DRAW_SQUARE_1: plot = 1'b1;
+			LOAD_SQUARE_2: draw = 3'b010;
+			DRAW_SQUARE_2: plot = 1'b1;
+			LOAD_SQUARE_3: draw = 3'b011;
+			DRAW_SQUARE_3: plot = 1'b1; 
+			LOAD_SQUARE_4: draw = 3'b100;
+			DRAW_SQUARE_4: plot = 1'b1;
+			REDRAW_DELAY: 
+			begin
+			ct_reset = 1'b1;
+			ct_max = flash_time;
+			end
+			CHECK_WAIT: check = 1'b1; 
+			CORRECT: score += 1'b1; // TODO increase num of sequences. shit this is in an always block fix this.
+			SYKE: score <= 8'b00000000; // TODO SET SEQUENCE NUMBERS TO 0
+		endcase
+	end
+	
+	always @(posedge clk)
+	begin: state_changes
+		if (resetn)
+		begin
+			current_state <= BEGIN;
+			score <= 8'b00000000;
+		else
+			current_state <= next_state;
+	end
+
+endmodule
+
+module datapath(clk, restart, randomize, check, draw, plot, max_sequences, inputs, correct, x, y, colour, pixels_drawn, sequences);
+	input clk;
+	input restart;
+	input randomize;
+	input check;
+	input [2:0] draw;
+	input plot;
+	input [3:0] max_sequences;
+	input [3:0] inputs;
+	output correct;
+	output [7:0] x;
+	output [7:0] y;
+	output reg [2:0] colour;
+	output reg [19:0] pixels_drawn;
+	output reg [3:0] sequences;
+
+	localparam // consts for positions
+	// x spacing for squares 24 (s1) 16 (s2) 16 (s3) 16 (s4) 24  squares are 16 x 16
+	SQUARE_1_X 	= 8'd25,
+	SQUARE_1_Y	= 8'd25,
+
+	SQUARE_2_X 	= 8'd57,
+	SQUARE_2_Y	= 8'd25,
+
+	SQUARE_3_X 	= 8'd89,
+	SQUARE_3_Y	= 8'd25,
+
+	SQUARE_4_X 	= 8'd121,
+	SQUARE_4_Y	= 8'd25,
+
+	WHITE 		= 3'b111,
+	RED 		= 3'b100;
+
+	// square things
+	wire [3:0] x_add = pixels_drawn[3:0];
+	wire [3:0] y_add = pixels_drawn[7:4];
+	reg x_start;
+	reg y_start;
+	assign x = x_start + x_add;
+	assign y = y_start + y_add;
+
+	// randomizer things
+	reg [3:0] active_squares;
+	
+	// sequences things
+	reg state; // 0 state is drawing active squares, 1 state is resetting to white squares
+	initial state = 0;
+	
+
+	always @(posedge clk)
+	begin
+		// RANDOM NUMBER GENERATING LETS GO
+		if (randomize == 1'b1) // TODO additional sequences
+		begin
+			sequences = max_sequences;
+			active_squares = $urandom%15;
+		end
+
+		// LOADING STARTING SQUARE POSITIONS
+		if (draw == 3'b001) // load first square
+		begin
+			pixels_drawn = 0;
+			x_start <= SQUARE_1_X;
+			y_start <= SQUARE_1_Y;
+			if (state == 1'b1)
+				colour = WHITE;
+			else
+			begin
+				if (active_squares[0] == 1'b0)
+					colour = WHITE;
+				else
+					colour = RED;
+			end
+		end
+		if (draw == 3'b010) // load second square
+		begin
+			pixels_drawn = 0;
+			x_start <= SQUARE_2_X;
+			y_start <= SQUARE_2_Y;
+			if (state == 1'b1)
+				colour = WHITE;
+			else
+			begin
+				if (active_squares[1] == 1'b0)
+					colour = WHITE;
+				else
+					colour = RED;
+			end
+		end
+		if (draw == 3'b011) // load third square
+		begin
+			pixels_drawn = 0;
+			x_start <= SQUARE_3_X;
+			y_start <= SQUARE_3_Y;
+			if (state == 1'b1)
+				colour = WHITE;
+			else
+			begin
+				if (active_squares[2] == 1'b0)
+					colour = WHITE;
+				else
+					colour = RED;
+			end
+		end
+		if (draw == 3'b100) // load fourth square and toggle state for next draw
+		begin
+			pixels_drawn = 0;
+			x_start <= SQUARE_4_X;
+			y_start <= SQUARE_4_Y;
+			if (state == 1'b1)
+				colour = WHITE;
+				state = 1'b0;
+				sequences -= 4'd1; // reduce remaining number of sequences
+			else
+			begin
+				state = 1'b1;
+				if (active_squares[3] == 1'b0)
+					colour = WHITE;
+				else
+					colour = RED;
+			end
+		end
+		
+		// DRAWING SQUARES
+		if (plot == 1'b1)
+		begin
+			if (pixels_drawn < 20'd256)
+				pixels_drawn <= pixels_drawn + 20'd1;
+		end
+
+		// CHECKING USER INPUT
+		if (check == 1'b1)
+		begin
+			if (inputs == active_squares)
+				correct = 1'b1;
+			else
+				correct = 1'b0;
+		end
+
+		// RESET
+		if (reset == 1'b1)
+		begin
+			state = 1'b0;
+		end
+	end		
+
+endmodule
+
+module rate_divider(clk, reset, start_value, enable);
+	input clk;
+	input reset;
+	input integer start_value;
+	output reg enable;
+  	
+  	integer counter;
+  
+    always @(posedge clk)
+    begin
+		  if (reset)
+		  begin
+		      counter <= max_count - 1;
+				enable <= 1'b0;
+		  end
+        else if (counter > 0)
+        begin
+            counter <= counter - 1;
+      		enable <= 1'b0;
+        end
+      
+        else
+        begin
+            ct <= max_count;
+          	enable <= 1'b1;
+        end
+    end
+endmodule
